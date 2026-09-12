@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Plano de Trabalho do Papai ❤</title>
+    <!-- Meta tags para PWA / WebApp -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Plano Papai">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS Client v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+        .safe-top {
+            padding-top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: #fff; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col justify-between pb-24 md:pb-10">
+
+    <!-- App Header -->
+    <header class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-950 text-white pb-6 px-4 shadow-md rounded-b-3xl sticky top-0 z-30 no-print safe-top">
+        <div class="max-w-3xl mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2 text-left">
+                <i data-lucide="clipboard-check" class="w-7 h-7 text-sky-300"></i>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-extrabold tracking-tight">Plano de Trabalho do Papai <span class="text-rose-300">❤</span></h1>
+                    <p class="text-xs text-sky-100 font-medium">Acompanhamento diário em tempo real</p>
+                </div>
+            </div>
+            <button onclick="openShareModal()" class="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl border border-white/20 transition flex items-center gap-1.5 text-xs font-semibold">
+                <i data-lucide="share-2" class="w-4 h-4 text-emerald-300"></i>
+                <span class="hidden sm:inline">Compartilhar</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-3xl w-full mx-auto px-4 py-5 flex-grow">
+
+        <!-- VIEW 1: HOJE (Tarefas do Dia) -->
+        <section id="view-hoje" class="app-view space-y-4">
+            <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <button id="btn-prev-day" class="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition flex items-center gap-1 text-sm font-semibold">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                    <span class="hidden sm:inline">Anterior</span>
+                </button>
+                <div class="text-center">
+                    <div class="flex items-center justify-center gap-1.5 cursor-pointer" onclick="document.getElementById('input-select-date').showPicker()">
+                        <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
+                        <span id="display-selected-date" class="font-bold text-slate-800 text-base md:text-lg">--</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                    </div>
+                    <span id="display-day-status-badge" class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-0.5">Hoje</span>
+                    <input type="date" id="input-select-date" class="sr-only">
+                </div>
+                <button id="btn-next-day" class="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition flex items-center gap-1 text-sm font-semibold">
+                    <span class="hidden sm:inline">Próximo</span>
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="delayed-banner-container" class="hidden"></div>
+
+            <div class="flex items-center justify-between pt-1">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="list-todo" class="w-5 h-5 text-emerald-600"></i>
+                    Tarefas Programadas
+                </h2>
+                <button onclick="switchTab('plano'); openActionModal();" class="text-xs font-semibold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    Nova Ação
+                </button>
+            </div>
+
+            <div id="today-tasks-container" class="space-y-3.5"></div>
+        </section>
+
+        <!-- VIEW 2: CALENDÁRIO MENSAL -->
+        <section id="view-calendario" class="app-view hidden space-y-4">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="calendar-days" class="w-5 h-5 text-emerald-600"></i>
+                        <span id="calendar-month-title">Setembro 2026</span>
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-7 text-center font-semibold text-xs text-slate-400 mb-2">
+                    <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                </div>
+
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 text-center text-sm"></div>
+            </div>
+
+            <div id="calendar-day-details" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 hidden">
+                <h3 id="cal-selected-day-title" class="font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex justify-between items-center">
+                    <span>Atividades do dia</span>
+                </h3>
+                <div id="cal-selected-day-content" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: HISTÓRICO -->
+        <section id="view-historico" class="app-view hidden space-y-4">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="history" class="w-5 h-5 text-emerald-600"></i>
+                    Histórico Completo de Lançamentos
+                </h2>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Ação</label>
+                        <select id="history-filter-action" onchange="handleHistoryFilterChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 font-medium">
+                            <option value="">Todas as ações</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">De</label>
+                            <input type="date" id="history-filter-from" onchange="handleHistoryFilterChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Até</label>
+                            <input type="date" id="history-filter-to" onchange="handleHistoryFilterChange()" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 font-semibold">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span id="history-results-count" class="text-xs font-semibold text-slate-500">0 lançamentos</span>
+                    <button onclick="clearHistoryFilters()" class="text-xs font-semibold text-emerald-700 hover:underline">Limpar filtros</button>
+                </div>
+            </div>
+
+            <div id="history-results-container" class="space-y-3"></div>
+        </section>
+
+        <!-- VIEW 4: PLANO COMPLETO -->
+        <section id="view-plano" class="app-view hidden space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Plano de Trabalho Integral</h2>
+                    <p class="text-xs text-slate-500">Cadastre e edite todas as ações planejadas</p>
+                </div>
+                <button onclick="openActionModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    Nova Ação
+                </button>
+            </div>
+
+            <div id="full-plan-container" class="space-y-3.5"></div>
+        </section>
+
+        <!-- VIEW 5: MAIS & RESUMO MENSAL & EXPORTAÇÃO -->
+        <section id="view-mais" class="app-view hidden space-y-4">
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-600"></i>
+                    Resumo do Mês
+                </h2>
+                <p class="text-xs text-slate-500 mb-4">Visão acumulada do desempenho das metas</p>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Planejado</span>
+                        <span id="summary-planned" class="text-2xl font-extrabold text-slate-800">0</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-100">
+                        <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">Realizado</span>
+                        <span id="summary-realized" class="text-2xl font-extrabold text-emerald-700">0</span>
+                    </div>
+                    <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-100">
+                        <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider block">Restante</span>
+                        <span id="summary-remaining" class="text-2xl font-extrabold text-amber-800">0</span>
+                    </div>
+                    <div class="bg-sky-50 p-3.5 rounded-xl border border-sky-100">
+                        <span class="text-xs font-semibold text-sky-700 uppercase tracking-wider block">Progresso</span>
+                        <span id="summary-progress" class="text-2xl font-extrabold text-sky-800">0%</span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+                        <span>Progresso Geral das Metas</span>
+                        <span id="summary-progress-label">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div id="summary-progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-100 text-center">
+                    <div class="p-2 rounded-xl bg-emerald-50 text-emerald-800">
+                        <div id="count-completed" class="text-lg font-bold">0</div>
+                        <div class="text-[10px] font-medium uppercase">Concluídas</div>
+                    </div>
+                    <div class="p-2 rounded-xl bg-sky-50 text-sky-800">
+                        <div id="count-in-progress" class="text-lg font-bold">0</div>
+                        <div class="text-[10px] font-medium uppercase">Em Andamento</div>
+                    </div>
+                    <div class="p-2 rounded-xl bg-rose-50 text-rose-800">
+                        <div id="count-overdue" class="text-lg font-bold">0</div>
+                        <div class="text-[10px] font-medium uppercase">Atrasadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exportação de Relatório -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="download" class="w-5 h-5 text-emerald-600"></i>
+                    Exportar Relatório do Mês
+                </h3>
+                <p class="text-xs text-slate-500">Gere um relatório impresso/PDF ou baixe a planilha em formato CSV.</p>
+                <div class="flex flex-col sm:flex-row gap-2 pt-1">
+                    <button onclick="exportToPDF()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        Imprimir / Salvar PDF
+                    </button>
+                    <button onclick="exportToCSV()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        Baixar Excel / CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status do Banco de Dados Supabase -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 text-xs text-slate-500 space-y-2">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span id="db-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span id="db-status-text">Verificando Conexão Supabase...</span>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="openCloudModal()" class="text-emerald-700 font-bold hover:underline text-[11px] flex items-center gap-1">
+                            <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-600"></i> Conectar / Configurar Supabase
+                        </button>
+                        <button onclick="openShareModal()" class="text-emerald-700 font-bold hover:underline text-[11px]">Gerar QR Code</button>
+                        <button onclick="resetDefaultData()" class="text-rose-600 font-semibold hover:underline text-[11px]">Restaurar Padrão</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-3 text-xs text-slate-500 font-medium no-print">
+        Feito por sua filha favorita que te ama Lorena ❤
+    </footer>
+
+    <!-- MENU NAVEGAÇÃO INFERIOR MOBILE -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 safe-bottom no-print shadow-lg">
+        <div class="max-w-md mx-auto grid grid-cols-5 text-center px-1 py-1.5">
+            <button onclick="switchTab('hoje')" id="tab-hoje" class="nav-btn active flex flex-col items-center py-1 text-emerald-600 font-bold transition">
+                <i data-lucide="check-circle-2" class="w-5 h-5 mb-0.5"></i>
+                <span class="text-[10px]">Hoje</span>
+            </button>
+            <button onclick="switchTab('calendario')" id="tab-calendario" class="nav-btn flex flex-col items-center py-1 text-slate-400 font-medium transition">
+                <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+                <span class="text-[10px]">Calendário</span>
+            </button>
+            <button onclick="switchTab('historico')" id="tab-historico" class="nav-btn flex flex-col items-center py-1 text-slate-400 font-medium transition">
+                <i data-lucide="history" class="w-5 h-5 mb-0.5"></i>
+                <span class="text-[10px]">Histórico</span>
+            </button>
+            <button onclick="switchTab('plano')" id="tab-plano" class="nav-btn flex flex-col items-center py-1 text-slate-400 font-medium transition">
+                <i data-lucide="clipboard-list" class="w-5 h-5 mb-0.5"></i>
+                <span class="text-[10px]">Plano</span>
+            </button>
+            <button onclick="switchTab('mais')" id="tab-mais" class="nav-btn flex flex-col items-center py-1 text-slate-400 font-medium transition">
+                <i data-lucide="layout-grid" class="w-5 h-5 mb-0.5"></i>
+                <span class="text-[10px]">Mais</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MODAL 1: LANÇAR REALIZADO -->
+    <div id="modal-launch" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 id="modal-launch-title" class="font-bold text-slate-800 text-base">Registrar Lançamento</h3>
+                <button onclick="closeLaunchModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-launch" onsubmit="handleSaveLaunch(event)" class="space-y-3.5">
+                <input type="hidden" id="launch-action-id">
+                <input type="hidden" id="launch-item-id">
+
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-xs text-slate-500 font-semibold block">Ação do Plano:</span>
+                    <span id="launch-action-name" class="font-bold text-slate-800 text-sm">--</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Data em que o trabalho foi realizado</label>
+                    <input type="date" id="launch-date-realized" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-3 font-semibold focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Quantidade Realizada</label>
+                    <input type="number" id="launch-quantity" min="1" required placeholder="Ex: 20" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Observação (Opcional)</label>
+                    <textarea id="launch-obs" rows="2" placeholder="Notas sobre a fiscalização..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeLaunchModal()" class="flex-1 py-3 border border-slate-300 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md">Salvar Lançamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EDITAR / CADASTRAR AÇÃO DO PLANO -->
+    <div id="modal-action" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 id="modal-action-title" class="font-bold text-slate-800 text-base">Nova Ação do Plano</h3>
+                <button onclick="closeActionModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-action" onsubmit="handleSaveAction(event)" class="space-y-3">
+                <input type="hidden" id="action-id">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Ação / Descrição da Tarefa</label>
+                    <input type="text" id="action-name" required placeholder="Ex: Fiscalização em bomba medidora" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5 font-medium">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Data Inicial</label>
+                        <input type="date" id="action-start-date" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Data Final</label>
+                        <input type="date" id="action-end-date" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5">
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-100 pt-2.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700">2º Intervalo de Datas (Opcional)</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <input type="date" id="action-start-date-2" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5">
+                        </div>
+                        <div>
+                            <input type="date" id="action-end-date-2" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Dias Específicos da Semana (Opcional)</label>
+                    <div class="flex flex-wrap gap-1.5 pt-1" id="weekdays-selector">
+                        <button type="button" onclick="toggleWeekday(1)" data-day="1" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Seg</button>
+                        <button type="button" onclick="toggleWeekday(2)" data-day="2" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Ter</button>
+                        <button type="button" onclick="toggleWeekday(3)" data-day="3" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Qua</button>
+                        <button type="button" onclick="toggleWeekday(4)" data-day="4" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Qui</button>
+                        <button type="button" onclick="toggleWeekday(5)" data-day="5" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Sex</button>
+                        <button type="button" onclick="toggleWeekday(6)" data-day="6" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Sáb</button>
+                        <button type="button" onclick="toggleWeekday(0)" data-day="0" class="btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">Dom</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Local</label>
+                        <input type="text" id="action-location" placeholder="Ex: Cuiabá" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Qtd Planejada</label>
+                        <input type="number" id="action-planned" min="1" required placeholder="Ex: 198" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm font-bold rounded-xl p-2.5">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-3">
+                    <button type="button" onclick="closeActionModal()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 font-semibold text-xs rounded-xl">Cancelar</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md">Salvar Ação</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: HISTÓRICO COMPLETO DA TAREFA -->
+    <div id="modal-task-history" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+        <div class="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 id="modal-history-task-title" class="font-bold text-slate-800 text-base">Histórico da Tarefa</h3>
+                <button onclick="closeTaskHistoryModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="task-history-summary" class="bg-slate-50 p-3 rounded-xl text-xs space-y-1"></div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                            <th class="p-2">Data Trab.</th>
+                            <th class="p-2">Realizado</th>
+                            <th class="p-2">Acumulado</th>
+                            <th class="p-2">% Concl.</th>
+                            <th class="p-2">Restante</th>
+                            <th class="p-2 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="task-history-table-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+
+            <button onclick="closeTaskHistoryModal()" class="w-full py-2.5 bg-slate-800 text-white font-semibold text-xs rounded-xl">Fechar</button>
+        </div>
+    </div>
+
+    <!-- CONFIRMATION MODAL -->
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5 space-y-3 text-center">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 id="confirm-title" class="font-bold text-slate-800 text-base">Confirmar Ação</h3>
+            <p id="confirm-message" class="text-xs text-slate-600">Tem certeza que deseja prosseguir?</p>
+            <div class="flex gap-2 pt-2">
+                <button id="btn-confirm-cancel" class="flex-1 py-2.5 border border-slate-300 text-slate-700 font-semibold text-xs rounded-xl">Cancelar</button>
+                <button id="btn-confirm-ok" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: CONFIGURAR SUPABASE -->
+    <div id="modal-cloud" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-emerald-600"></i>
+                    Conectar Banco de Dados Supabase
+                </h3>
+                <button onclick="closeCloudModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Insira a **URL** e a **Chave Anon (public)** do seu projeto no **Supabase** (<a href="https://supabase.com" target="_blank" class="text-emerald-600 font-bold underline">supabase.com</a>) para sincronizar dados em tempo real:
+            </p>
+
+            <form onsubmit="handleSaveSupabaseConfig(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Supabase URL</label>
+                    <input type="text" id="supabase-url" placeholder="https://xxxxxx.supabase.co" class="w-full bg-slate-50 border border-slate-300 text-xs font-mono rounded-xl p-3 text-slate-800 focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Supabase Anon Key (public)</label>
+                    <textarea id="supabase-key" rows="3" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." class="w-full bg-slate-50 border border-slate-300 text-xs font-mono rounded-xl p-3 text-slate-800 focus:ring-emerald-500 focus:border-emerald-500"></textarea>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="clearCloudConfig()" class="py-2.5 px-3 border border-rose-200 text-rose-700 font-semibold text-xs rounded-xl hover:bg-rose-50">
+                        Desconectar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Salvar e Conectar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SHARE MODAL -->
+    <div id="modal-share" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5 space-y-4 text-center">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-800 text-sm">Compartilhar com Papai</h3>
+                <button onclick="closeShareModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <img id="share-qr-code" src="" alt="QR Code" class="w-48 h-48 mx-auto rounded-2xl border border-slate-200">
+            <button onclick="copyAppUrl()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 shadow-md">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+                Copiar Link do App
+            </button>
+        </div>
+    </div>
+
+    <!-- AREA PARA IMPRESSAO / PDF -->
+    <div id="print-area" class="print-only p-8 bg-white text-slate-900">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold">Plano de Trabalho do Papai ❤</h1>
+            <p class="text-sm">Relatório Mensal de Atividades - Setembro 2026</p>
+            <p class="text-xs text-slate-500 mt-1">Gerado em: <span id="print-generated-date"></span></p>
+        </div>
+        <div id="print-content"></div>
+    </div>
+
+    <script>
+        // APP CONFIG & STATE
+        let supabaseClient = null;
+
+        const DEFAULT_SUPABASE_URL = "https://bpkdqgesxxezkhiedosp.supabase.co";
+        const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwa2RxZ2VzeHhlemtoaWVkb3NwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxNzQwOTcsImV4cCI6MjEwNDc1MDA5N30.5VbEju1r38Jbm02UW7_jZz72UPBZOm44LhScVTH9G4I";
+
+        // Default Initial Data
+        const defaultActions = [
+            {
+                id: "act-1",
+                acao: "Fiscalização em bomba medidora de combustível",
+                dataInicial: "2026-09-01",
+                dataFinal: "2026-09-30",
+                dataInicial2: "",
+                dataFinal2: "",
+                diasSemana: [],
+                local: "Cuiabá",
+                planejado: 198,
+                criadoEm: "2026-09-01T08:00:00Z"
+            },
+            {
+                id: "act-2",
+                acao: "Fiscalização em balança",
+                dataInicial: "2026-09-01",
+                dataFinal: "2026-09-30",
+                dataInicial2: "",
+                dataFinal2: "",
+                diasSemana: [],
+                local: "Cuiabá",
+                planejado: 150,
+                criadoEm: "2026-09-01T08:00:00Z"
+            },
+            {
+                id: "act-3",
+                acao: "Fiscalização em estabelecimento que comercializa alimentos a peso",
+                dataInicial: "2026-09-01",
+                dataFinal: "2026-09-30",
+                dataInicial2: "",
+                dataFinal2: "",
+                diasSemana: [],
+                local: "Cuiabá",
+                planejado: 80,
+                criadoEm: "2026-09-01T08:00:00Z"
+            },
+            {
+                id: "act-4",
+                acao: "Sincronizar coletor ou notebook duas vezes por semana (Quarta e Sexta)",
+                dataInicial: "2026-09-01",
+                dataFinal: "2026-09-30",
+                dataInicial2: "",
+                dataFinal2: "",
+                diasSemana: [3, 5],
+                local: "Escritório / Cuiabá",
+                planejado: 8,
+                criadoEm: "2026-09-01T08:00:00Z"
+            },
+            {
+                id: "act-5",
+                acao: "Verificação de cronotacógrafos e instrumentos de medição",
+                dataInicial: "2026-09-01",
+                dataFinal: "2026-09-25",
+                dataInicial2: "",
+                dataFinal2: "",
+                diasSemana: [],
+                local: "Várzea Grande",
+                planejado: 45,
+                criadoEm: "2026-09-01T08:00:00Z"
+            }
+        ];
+
+        let appState = {
+            selectedDate: '2026-09-11',
+            selectedMonth: '2026-09',
+            actions: [...defaultActions],
+            launches: [],
+            selectedWeekdays: [],
+            activeTab: 'hoje',
+            historyFilters: { actionId: '', dateFrom: '', dateTo: '' },
+            dirtyViews: { hoje: true, calendario: true, historico: true, plano: true, mais: true }
+        };
+
+        function formatDateBR(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function getTotalRealized(actionId) {
+            return appState.launches
+                .filter(l => l.planoId === actionId)
+                .reduce((sum, l) => sum + (Number(l.quantidade) || 0), 0);
+        }
+
+        function getLaunchesUpToDate(actionId, targetDateStr) {
+            return appState.launches.filter(l => l.planoId === actionId && l.dataRealizacao <= targetDateStr);
+        }
+
+        function isActionScheduledOnDate(action, dateStr) {
+            const inPeriod1 = dateStr >= action.dataInicial && dateStr <= action.dataFinal;
+            const inPeriod2 = action.dataInicial2 && action.dataFinal2 && (dateStr >= action.dataInicial2 && dateStr <= action.dataFinal2);
+            if (!inPeriod1 && !inPeriod2) return false;
+
+            if (action.diasSemana && action.diasSemana.length > 0) {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                const dayOfWeek = new Date(y, m - 1, d).getDay();
+                return action.diasSemana.includes(dayOfWeek);
+            }
+            return true;
+        }
+
+        function getActionStatus(action, currentDateStr) {
+            const total = getTotalRealized(action.id);
+            if (total >= action.planejado) {
+                return total > action.planejado ? 'Meta ultrapassada' : 'Concluído';
+            }
+            const maxEndDate = (action.dataFinal2 && action.dataFinal2 > action.dataFinal) ? action.dataFinal2 : action.dataFinal;
+            if (currentDateStr > maxEndDate && total < action.planejado) {
+                return 'Atrasado';
+            }
+            return 'Em andamento';
+        }
+
+        function getOverdueTasksForDate(currentDateStr) {
+            const overdues = [];
+            appState.actions.forEach(action => {
+                const totalRealized = getTotalRealized(action.id);
+                if (totalRealized >= action.planejado) return;
+
+                const maxEndDate = (action.dataFinal2 && action.dataFinal2 > action.dataFinal) ? action.dataFinal2 : action.dataFinal;
+                if (currentDateStr > maxEndDate) {
+                    overdues.push({
+                        action,
+                        overdueDate: maxEndDate,
+                        dayName: 'Prazo do Período Encerrado'
+                    });
+                }
+            });
+            return overdues;
+        }
+
+        // Retorna, para ações com dias específicos da semana, quais datas programadas
+        // dentro do período (até currentDateStr) não têm nenhum lançamento registrado.
+        // Ações cujo prazo já venceu (tratadas por getOverdueTasksForDate) são ignoradas aqui
+        // para não aparecerem duplicadas no banner de pendências.
+        function getMissedWeekdayOccurrences(currentDateStr) {
+            const missedByAction = [];
+
+            appState.actions.forEach(action => {
+                if (!action.diasSemana || action.diasSemana.length === 0) return;
+
+                const maxEndDate = (action.dataFinal2 && action.dataFinal2 > action.dataFinal) ? action.dataFinal2 : action.dataFinal;
+                // Se o prazo já venceu, essa ação já aparece via getOverdueTasksForDate.
+                if (currentDateStr > maxEndDate) return;
+
+                const launchDates = new Set(
+                    appState.launches.filter(l => l.planoId === action.id).map(l => l.dataRealizacao)
+                );
+
+                const missedDates = [];
+                const periods = [[action.dataInicial, action.dataFinal]];
+                if (action.dataInicial2 && action.dataFinal2) periods.push([action.dataInicial2, action.dataFinal2]);
+
+                periods.forEach(([periodStart, periodEnd]) => {
+                    if (!periodStart || !periodEnd) return;
+                    const [sy, sm, sd] = periodStart.split('-').map(Number);
+                    let cursor = new Date(sy, sm - 1, sd);
+                    const limitStr = currentDateStr < periodEnd ? currentDateStr : periodEnd;
+
+                    while (true) {
+                        const cStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+                        if (cStr > limitStr) break;
+                        if (action.diasSemana.includes(cursor.getDay()) && !launchDates.has(cStr)) {
+                            missedDates.push(cStr);
+                        }
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                });
+
+                if (missedDates.length > 0) {
+                    missedDates.sort();
+                    missedByAction.push({ action, missedDates });
+                }
+            });
+
+            return missedByAction;
+        }
+
+        // Junta as duas fontes de pendência (prazo encerrado + dia da semana sem lançamento)
+        // em uma única lista pronta para exibir no banner de destaque.
+        function getPendingAlerts(currentDateStr) {
+            const alerts = [];
+
+            getOverdueTasksForDate(currentDateStr).forEach(o => {
+                alerts.push({
+                    type: 'atrasado',
+                    action: o.action,
+                    label: 'Prazo encerrado',
+                    detailDate: o.overdueDate
+                });
+            });
+
+            getMissedWeekdayOccurrences(currentDateStr).forEach(m => {
+                alerts.push({
+                    type: 'dia-perdido',
+                    action: m.action,
+                    label: 'Dia programado sem lançamento',
+                    missedDates: m.missedDates
+                });
+            });
+
+            return alerts;
+        }
+
+        // Remove itens com id repetido, mantendo o último (mais recente) de cada id.
+        // Protege a tela contra duplicidade que já exista no localStorage ou vinda do Supabase.
+        function dedupeById(list) {
+            const map = new Map();
+            (list || []).forEach(item => { if (item && item.id) map.set(item.id, item); });
+            return Array.from(map.values());
+        }
+
+        // LocalStorage logic
+        function saveLocalState() {
+            try {
+                localStorage.setItem('papai_actions', JSON.stringify(appState.actions));
+                localStorage.setItem('papai_launches', JSON.stringify(appState.launches));
+            } catch(e) {}
+        }
+
+        function loadLocalState() {
+            try {
+                const savedActions = localStorage.getItem('papai_actions');
+                const savedLaunches = localStorage.getItem('papai_launches');
+                if (savedActions) appState.actions = dedupeById(JSON.parse(savedActions));
+                if (savedLaunches) appState.launches = dedupeById(JSON.parse(savedLaunches));
+            } catch(e) {}
+        }
+
+        function invalidateViews() {
+            appState.dirtyViews = { hoje: true, calendario: true, historico: true, plano: true, mais: true };
+        }
+
+        async function initSupabase() {
+            const sbUrl = localStorage.getItem('papai_sb_url') || DEFAULT_SUPABASE_URL;
+            const sbKey = localStorage.getItem('papai_sb_key') || DEFAULT_SUPABASE_KEY;
+
+            if (sbUrl && sbKey && window.supabase) {
+                try {
+                    supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+                    updateDbStatusUI(true, "Conectado ao Supabase (Nuvem)");
+                    await syncFromSupabase();
+                } catch (e) {
+                    console.warn("Erro ao conectar ao Supabase:", e);
+                    updateDbStatusUI(false, "Erro de Conexão Supabase");
+                }
+            } else {
+                updateDbStatusUI(false, "Modo Local (Aparelho)");
+            }
+        }
+
+        async function syncFromSupabase() {
+            if (!supabaseClient) return;
+
+            try {
+                const { data: fetchPlanos, error: errPlanos } = await supabaseClient.from('planos').select('*');
+                if (!errPlanos && fetchPlanos && fetchPlanos.length > 0) {
+                    appState.actions = dedupeById(fetchPlanos);
+                }
+
+                const { data: fetchLancamentos, error: errLanc } = await supabaseClient.from('lancamentos').select('*');
+                if (!errLanc && fetchLancamentos) {
+                    appState.launches = dedupeById(fetchLancamentos);
+                }
+
+                saveLocalState();
+                invalidateViews();
+                renderActiveView();
+            } catch(err) {
+                console.warn("Erro no sync com Supabase:", err);
+            }
+        }
+
+        async function saveActionToSupabase(actionData) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('planos').upsert(actionData, { onConflict: 'id' });
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteActionFromSupabase(actionId) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('planos').delete().eq('id', actionId);
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveLaunchToSupabase(launchData) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('lancamentos').upsert(launchData, { onConflict: 'id' });
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteLaunchFromSupabase(launchId) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('lancamentos').delete().eq('id', launchId);
+            } catch(e) { console.error(e); }
+        }
+
+        function updateDbStatusUI(online, text) {
+            const dot = document.getElementById('db-status-dot');
+            const txt = document.getElementById('db-status-text');
+            if (dot) dot.className = `w-2.5 h-2.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`;
+            if (txt) txt.textContent = text;
+        }
+
+        let iconTimeout = null;
+        function scheduleIconRefresh() {
+            if (iconTimeout) clearTimeout(iconTimeout);
+            iconTimeout = setTimeout(() => {
+                if (window.lucide) lucide.createIcons();
+            }, 10);
+        }
+
+        window.renderActiveView = function() {
+            const active = appState.activeTab;
+            
+            if (appState.dirtyViews[active]) {
+                if (active === 'hoje') renderHojeView();
+                else if (active === 'calendario') renderCalendarioView();
+                else if (active === 'historico') renderHistoricoView();
+                else if (active === 'plano') renderPlanoView();
+                else if (active === 'mais') renderMaisView();
+
+                appState.dirtyViews[active] = false;
+                scheduleIconRefresh();
+            }
+        };
+
+        window.renderAllViews = function() {
+            invalidateViews();
+            renderActiveView();
+        };
+
+        function renderHojeView() {
+            const dateStr = appState.selectedDate;
+            document.getElementById('display-selected-date').textContent = formatDateBR(dateStr);
+            
+            const todayStr = '2026-09-11';
+            const badge = document.getElementById('display-day-status-badge');
+            if (dateStr === todayStr) {
+                badge.textContent = 'Hoje';
+                badge.className = 'text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-0.5';
+            } else if (dateStr < todayStr) {
+                badge.textContent = 'Dia Anterior';
+                badge.className = 'text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full inline-block mt-0.5';
+            } else {
+                badge.textContent = 'Data Futura';
+                badge.className = 'text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full inline-block mt-0.5';
+            }
+
+            const pendingAlerts = getPendingAlerts(dateStr);
+            const bannerContainer = document.getElementById('delayed-banner-container');
+            if (pendingAlerts.length > 0) {
+                bannerContainer.classList.remove('hidden');
+                bannerContainer.innerHTML = `
+                    <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-2">
+                        <div class="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i>
+                            Atividades Pendentes / Atrasadas (${pendingAlerts.length})
+                        </div>
+                        <div class="space-y-2">
+                            ${pendingAlerts.map(alert => {
+                                if (alert.type === 'atrasado') {
+                                    return `
+                                        <div class="bg-white p-2.5 rounded-xl border border-rose-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                            <div>
+                                                <span class="font-bold text-rose-900 block">${alert.action.acao}</span>
+                                                <span class="text-rose-600 font-medium">Prazo encerrado em: ${formatDateBR(alert.detailDate)}</span>
+                                                <span class="text-slate-500 block">Realizado: ${getTotalRealized(alert.action.id)} / ${alert.action.planejado}</span>
+                                            </div>
+                                            <button onclick="openLaunchModal('${alert.action.id}', '${alert.detailDate}')" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-sm">
+                                                + Lançar Realizado
+                                            </button>
+                                        </div>
+                                    `;
+                                }
+                                // type === 'dia-perdido': ação com dias específicos da semana que não foi lançada
+                                const maxShown = 3;
+                                const shownDates = alert.missedDates.slice(-maxShown);
+                                const extraCount = alert.missedDates.length - shownDates.length;
+                                return `
+                                    <div class="bg-white p-2.5 rounded-xl border border-amber-200 flex flex-col gap-2 text-xs">
+                                        <div>
+                                            <span class="font-bold text-amber-900 block">${alert.action.acao}</span>
+                                            <span class="text-amber-700 font-medium">Não lançado nos dias programados: ${shownDates.map(d => formatDateBR(d)).join(', ')}${extraCount > 0 ? ` (+${extraCount} anterior${extraCount > 1 ? 'es' : ''})` : ''}</span>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            ${shownDates.map(d => `
+                                                <button onclick="openLaunchModal('${alert.action.id}', '${d}')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] px-2.5 py-1.5 rounded-lg transition shadow-sm">
+                                                    + Lançar ${formatDateBR(d)}
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                bannerContainer.classList.add('hidden');
+            }
+
+            const tasksContainer = document.getElementById('today-tasks-container');
+            const scheduledActions = appState.actions.filter(act => isActionScheduledOnDate(act, dateStr));
+
+            if (scheduledActions.length === 0) {
+                tasksContainer.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 text-center border border-slate-200">
+                        <i data-lucide="calendar-x" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+                        <p class="font-semibold text-slate-600 text-sm">Nenhuma atividade programada para este dia.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            tasksContainer.innerHTML = scheduledActions.map(action => {
+                const totalRealized = getTotalRealized(action.id);
+                const percent = ((totalRealized / action.planejado) * 100).toFixed(1);
+                const remaining = Math.max(0, action.planejado - totalRealized);
+                const isSurpassed = totalRealized > action.planejado;
+                const status = getActionStatus(action, dateStr);
+
+                let statusBadgeClass = "bg-slate-100 text-slate-700";
+                if (status === 'Concluído' || status === 'Meta ultrapassada') statusBadgeClass = "bg-emerald-100 text-emerald-800";
+                if (status === 'Em andamento') statusBadgeClass = "bg-sky-100 text-sky-800";
+                if (status === 'Atrasado') statusBadgeClass = "bg-rose-100 text-rose-800 font-bold";
+
+                return `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/90 space-y-3">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mb-1">${action.local || 'Geral'}</span>
+                                <h3 class="font-bold text-slate-800 text-sm md:text-base">${action.acao}</h3>
+                            </div>
+                            <span class="text-xs px-2.5 py-1 rounded-full font-bold whitespace-nowrap ${statusBadgeClass}">
+                                ${status}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                            <div>
+                                <span class="text-slate-400 text-[10px] block font-medium">Planejado</span>
+                                <span class="font-extrabold text-slate-700 text-sm">${action.planejado}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 text-[10px] block font-medium">Realizado</span>
+                                <span class="font-extrabold ${isSurpassed ? 'text-emerald-600' : 'text-slate-800'} text-sm">${totalRealized}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 text-[10px] block font-medium">Restante</span>
+                                <span class="font-extrabold text-amber-700 text-sm">${remaining}</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-slate-600">${totalRealized} / ${action.planejado}</span>
+                                <span class="${isSurpassed ? 'text-emerald-600 font-bold' : 'text-slate-600'}">${percent}% concluído</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-300" style="width: ${Math.min(100, percent)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-100 gap-2">
+                            <button onclick="openLaunchModal('${action.id}', '${dateStr}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                + Lançar realizado
+                            </button>
+                            <div class="flex gap-1">
+                                <button onclick="openTaskHistoryModal('${action.id}')" title="Histórico da Tarefa" class="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition">
+                                    <i data-lucide="history" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openActionModal('${action.id}')" title="Editar Ação" class="p-2 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition">
+                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderCalendarioView() {
+            const grid = document.getElementById('calendar-grid');
+            if (!grid) return;
+
+            const year = 2026, month = 8;
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let html = '';
+            for (let i = 0; i < firstDay; i++) {
+                html += `<div class="h-14 bg-slate-50/50 rounded-xl"></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayStr = `${year}-09-${String(day).padStart(2, '0')}`;
+                const dayLaunches = appState.launches.filter(l => l.dataRealizacao === dayStr);
+                const daySum = dayLaunches.reduce((s, l) => s + (Number(l.quantidade) || 0), 0);
+                const scheduledCount = appState.actions.filter(a => isActionScheduledOnDate(a, dayStr)).length;
+                const isSelected = appState.selectedDate === dayStr;
+
+                let borderStyle = isSelected ? 'border-2 border-emerald-600 bg-emerald-50/40' : 'border border-slate-100 hover:border-emerald-300';
+
+                html += `
+                    <div onclick="selectCalendarDay('${dayStr}')" class="h-16 p-1 rounded-xl ${borderStyle} flex flex-col justify-between cursor-pointer transition text-left relative overflow-hidden">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-xs ${isSelected ? 'text-emerald-700' : 'text-slate-700'}">${day}</span>
+                        </div>
+                        <div class="space-y-0.5">
+                            ${scheduledCount > 0 ? `<div class="text-[9px] text-slate-400 leading-tight">${scheduledCount} ativ.</div>` : ''}
+                            ${daySum > 0 ? `<div class="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 rounded leading-tight">${daySum} realiz.</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            grid.innerHTML = html;
+        }
+
+        window.selectCalendarDay = function(dateStr) {
+            appState.selectedDate = dateStr;
+            invalidateViews();
+            renderActiveView();
+
+            const detailsPanel = document.getElementById('calendar-day-details');
+            const title = document.getElementById('cal-selected-day-title');
+            const content = document.getElementById('cal-selected-day-content');
+
+            detailsPanel.classList.remove('hidden');
+            title.innerHTML = `
+                <span>Lançamentos em ${formatDateBR(dateStr)}</span>
+                <button onclick="switchTab('hoje')" class="text-xs font-semibold text-emerald-600 hover:underline">Ir para 'Hoje' →</button>
+            `;
+
+            const dayLaunches = appState.launches.filter(l => l.dataRealizacao === dateStr);
+            if (dayLaunches.length === 0) {
+                content.innerHTML = `<p class="text-xs text-slate-400">Nenhum trabalho realizado registrado especificamente nesta data.</p>`;
+            } else {
+                content.innerHTML = dayLaunches.map(l => {
+                    const act = appState.actions.find(a => a.id === l.planoId);
+                    return `
+                        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-slate-800 block">${act ? act.acao : 'Ação Excluída'}</span>
+                                <span class="text-slate-500">Qtd Realizada: <strong>${l.quantidade}</strong></span>
+                                ${l.observacao ? `<p class="text-[11px] text-slate-400 italic">"${l.observacao}"</p>` : ''}
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="editLaunch('${l.id}')" class="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                                <button onclick="confirmDeleteLaunch('${l.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                scheduleIconRefresh();
+            }
+        };
+
+        function populateHistoryActionFilter() {
+            const select = document.getElementById('history-filter-action');
+            if (!select) return;
+            const currentValue = appState.historyFilters.actionId;
+            select.innerHTML = '<option value="">Todas as ações</option>' +
+                appState.actions.map(a => `<option value="${a.id}">${a.acao}</option>`).join('');
+            select.value = currentValue || '';
+        }
+
+        function renderHistoricoView() {
+            populateHistoryActionFilter();
+
+            const fromInput = document.getElementById('history-filter-from');
+            const toInput = document.getElementById('history-filter-to');
+            if (fromInput) fromInput.value = appState.historyFilters.dateFrom || '';
+            if (toInput) toInput.value = appState.historyFilters.dateTo || '';
+
+            const { actionId, dateFrom, dateTo } = appState.historyFilters;
+            const container = document.getElementById('history-results-container');
+            const countLabel = document.getElementById('history-results-count');
+
+            // Mostra TODO o histórico de lançamentos, do mais recente para o mais antigo,
+            // aplicando os filtros selecionados (ação e/ou intervalo de datas).
+            let filteredLaunches = [...appState.launches].sort((a, b) => b.dataRealizacao.localeCompare(a.dataRealizacao));
+
+            if (actionId) filteredLaunches = filteredLaunches.filter(l => l.planoId === actionId);
+            if (dateFrom) filteredLaunches = filteredLaunches.filter(l => l.dataRealizacao >= dateFrom);
+            if (dateTo) filteredLaunches = filteredLaunches.filter(l => l.dataRealizacao <= dateTo);
+
+            if (countLabel) countLabel.textContent = `${filteredLaunches.length} lançamento${filteredLaunches.length === 1 ? '' : 's'}`;
+
+            if (filteredLaunches.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 text-center border border-slate-200">
+                        <i data-lucide="history" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+                        <p class="font-semibold text-slate-600 text-sm">Nenhum lançamento encontrado para os filtros selecionados.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredLaunches.map(launch => {
+                const action = appState.actions.find(a => a.id === launch.planoId);
+                if (!action) return '';
+
+                const accumLaunches = getLaunchesUpToDate(action.id, launch.dataRealizacao);
+                const accumTotal = accumLaunches.reduce((sum, l) => sum + (Number(l.quantidade) || 0), 0);
+                const percent = ((accumTotal / action.planejado) * 100).toFixed(1);
+
+                return `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="inline-block text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mb-1">${formatDateBR(launch.dataRealizacao)}</span>
+                                <h3 class="font-bold text-slate-800 text-sm">${action.acao}</h3>
+                                <p class="text-xs text-slate-500">Realizado nesse lançamento: <strong class="text-emerald-700 text-base font-extrabold">${launch.quantidade}</strong></p>
+                                ${launch.observacao ? `<p class="text-[11px] text-slate-400 italic">"${launch.observacao}"</p>` : ''}
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="editLaunch('${launch.id}')" class="p-1.5 text-slate-400 hover:text-sky-600 rounded-lg"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                                <button onclick="confirmDeleteLaunch('${launch.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1 border border-slate-100">
+                            <div class="flex justify-between text-slate-600">
+                                <span>Total acumulado até esta data:</span>
+                                <strong>${accumTotal} / ${action.planejado}</strong>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>Percentual concluído:</span>
+                                <strong class="text-emerald-700">${percent}%</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.handleHistoryFilterChange = function() {
+            appState.historyFilters.actionId = document.getElementById('history-filter-action').value;
+            appState.historyFilters.dateFrom = document.getElementById('history-filter-from').value;
+            appState.historyFilters.dateTo = document.getElementById('history-filter-to').value;
+            appState.dirtyViews.historico = true;
+            renderActiveView();
+        };
+
+        window.clearHistoryFilters = function() {
+            appState.historyFilters = { actionId: '', dateFrom: '', dateTo: '' };
+            appState.dirtyViews.historico = true;
+            renderActiveView();
+        };
+
+        function renderPlanoView() {
+            const container = document.getElementById('full-plan-container');
+            if (!container) return;
+
+            container.innerHTML = appState.actions.map(action => {
+                const totalRealized = getTotalRealized(action.id);
+                const percent = ((totalRealized / action.planejado) * 100).toFixed(1);
+
+                return `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm md:text-base">${action.acao}</h3>
+                                <p class="text-xs text-slate-500 mt-0.5">Local: <strong>${action.local || 'Geral'}</strong></p>
+                            </div>
+                            <span class="text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg text-slate-700 whitespace-nowrap">Qtd: ${action.planejado}</span>
+                        </div>
+
+                        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 text-xs">
+                            <div class="flex justify-between font-semibold text-slate-700">
+                                <span>Realizado: ${totalRealized} / ${action.planejado}</span>
+                                <span class="text-emerald-700">${percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                                <div class="bg-emerald-500 h-2 rounded-full" style="width: ${Math.min(100, percent)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button onclick="openTaskHistoryModal('${action.id}')" class="px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl flex items-center gap-1">
+                                <i data-lucide="history" class="w-3.5 h-3.5"></i> Histórico
+                            </button>
+                            <button onclick="openActionModal('${action.id}')" class="px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-semibold rounded-xl flex items-center gap-1">
+                                <i data-lucide="edit" class="w-3.5 h-3.5"></i> Editar
+                            </button>
+                            <button onclick="confirmDeleteAction('${action.id}')" class="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold rounded-xl flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Excluir
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMaisView() {
+            let totalPlanned = 0, totalRealized = 0;
+            appState.actions.forEach(act => {
+                totalPlanned += Number(act.planejado) || 0;
+                totalRealized += getTotalRealized(act.id);
+            });
+
+            const remaining = Math.max(0, totalPlanned - totalRealized);
+            const overallPercent = totalPlanned > 0 ? ((totalRealized / totalPlanned) * 100).toFixed(1) : 0;
+
+            document.getElementById('summary-planned').textContent = totalPlanned;
+            document.getElementById('summary-realized').textContent = totalRealized;
+            document.getElementById('summary-remaining').textContent = remaining;
+            document.getElementById('summary-progress').textContent = `${overallPercent}%`;
+            document.getElementById('summary-progress-label').textContent = `${overallPercent}%`;
+            document.getElementById('summary-progress-bar').style.width = `${Math.min(100, overallPercent)}%`;
+
+            let completed = 0, inProgress = 0, overdue = 0;
+            appState.actions.forEach(act => {
+                const st = getActionStatus(act, appState.selectedDate);
+                if (st === 'Concluído' || st === 'Meta ultrapassada') completed++;
+                else if (st === 'Atrasado') overdue++;
+                else if (st === 'Em andamento') inProgress++;
+            });
+
+            document.getElementById('count-completed').textContent = completed;
+            document.getElementById('count-in-progress').textContent = inProgress;
+            document.getElementById('count-overdue').textContent = overdue;
+        }
+
+        window.switchTab = function(tabName) {
+            appState.activeTab = tabName;
+            document.querySelectorAll('.app-view').forEach(view => view.classList.add('hidden'));
+            
+            const selectedView = document.getElementById(`view-${tabName}`);
+            if (selectedView) selectedView.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn flex flex-col items-center py-1 text-slate-400 font-medium transition';
+            });
+            const activeNavBtn = document.getElementById(`tab-${tabName}`);
+            if (activeNavBtn) {
+                activeNavBtn.className = 'nav-btn active flex flex-col items-center py-1 text-emerald-600 font-bold transition';
+            }
+
+            renderActiveView();
+        };
+
+        window.openLaunchModal = function(actionId, defaultDate) {
+            const action = appState.actions.find(a => a.id === actionId);
+            if (!action) return;
+
+            document.getElementById('launch-action-id').value = action.id;
+            document.getElementById('launch-item-id').value = '';
+            document.getElementById('launch-action-name').textContent = action.acao;
+            document.getElementById('launch-date-realized').value = defaultDate || appState.selectedDate;
+            document.getElementById('launch-quantity').value = '';
+            document.getElementById('launch-obs').value = '';
+
+            document.getElementById('modal-launch').classList.remove('hidden');
+        };
+
+        window.closeLaunchModal = function() {
+            document.getElementById('modal-launch').classList.add('hidden');
+        };
+
+        let isSavingLaunch = false;
+        window.handleSaveLaunch = function(event) {
+            if (event) event.preventDefault();
+            if (isSavingLaunch) return; // evita salvar duas vezes com duplo clique/duplo toque
+            isSavingLaunch = true;
+            setTimeout(() => { isSavingLaunch = false; }, 800);
+
+            const actionId = document.getElementById('launch-action-id').value;
+            const itemId = document.getElementById('launch-item-id').value;
+            const dateRealized = document.getElementById('launch-date-realized').value;
+            const qty = Number(document.getElementById('launch-quantity').value);
+            const obs = document.getElementById('launch-obs').value.trim();
+
+            if (!actionId || !dateRealized || isNaN(qty) || qty <= 0) return;
+
+            const nowStr = new Date().toISOString();
+            const launchData = {
+                id: itemId || 'launch-' + Date.now(),
+                planoId: actionId,
+                dataRealizacao: dateRealized,
+                dataLancamento: nowStr,
+                quantidade: qty,
+                observacao: obs,
+                criadoEm: nowStr,
+                atualizadoEm: nowStr
+            };
+
+            if (itemId) {
+                const idx = appState.launches.findIndex(l => l.id === itemId);
+                if (idx !== -1) appState.launches[idx] = { ...appState.launches[idx], ...launchData };
+            } else {
+                appState.launches.push(launchData);
+            }
+
+            saveLocalState();
+            closeLaunchModal();
+            invalidateViews();
+            renderActiveView();
+
+            saveLaunchToSupabase(launchData);
+        };
+
+        window.editLaunch = function(launchId) {
+            const launch = appState.launches.find(l => l.id === launchId);
+            if (!launch) return;
+
+            const action = appState.actions.find(a => a.id === launch.planoId);
+            document.getElementById('launch-action-id').value = launch.planoId;
+            document.getElementById('launch-item-id').value = launch.id;
+            document.getElementById('launch-action-name').textContent = action ? action.acao : 'Ação';
+            document.getElementById('launch-date-realized').value = launch.dataRealizacao;
+            document.getElementById('launch-quantity').value = launch.quantidade;
+            document.getElementById('launch-obs').value = launch.observacao || '';
+
+            document.getElementById('modal-launch').classList.remove('hidden');
+        };
+
+        window.confirmDeleteLaunch = function(launchId) {
+            showConfirmModal("Excluir Lançamento", "Deseja realmente excluir este lançamento?", async () => {
+                appState.launches = appState.launches.filter(l => l.id !== launchId);
+                saveLocalState();
+                renderAllViews();
+                deleteLaunchFromSupabase(launchId);
+            });
+        };
+
+        window.toggleWeekday = function(dayNum) {
+            const idx = appState.selectedWeekdays.indexOf(dayNum);
+            if (idx > -1) {
+                appState.selectedWeekdays.splice(idx, 1);
+            } else {
+                appState.selectedWeekdays.push(dayNum);
+            }
+            updateWeekdayButtonsUI();
+        };
+
+        function updateWeekdayButtonsUI() {
+            document.querySelectorAll('#weekdays-selector .btn-weekday').forEach(btn => {
+                const d = Number(btn.getAttribute('data-day'));
+                if (appState.selectedWeekdays.includes(d)) {
+                    btn.className = 'btn-weekday border border-emerald-600 bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm';
+                } else {
+                    btn.className = 'btn-weekday border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 bg-white';
+                }
+            });
+        }
+
+        window.openActionModal = function(actionId) {
+            const title = document.getElementById('modal-action-title');
+            const form = document.getElementById('form-action');
+
+            appState.selectedWeekdays = [];
+
+            if (actionId) {
+                const action = appState.actions.find(a => a.id === actionId);
+                if (!action) return;
+                title.textContent = "Editar Ação do Plano";
+                document.getElementById('action-id').value = action.id;
+                document.getElementById('action-name').value = action.acao;
+                document.getElementById('action-start-date').value = action.dataInicial || '';
+                document.getElementById('action-end-date').value = action.dataFinal || '';
+                document.getElementById('action-start-date-2').value = action.dataInicial2 || '';
+                document.getElementById('action-end-date-2').value = action.dataFinal2 || '';
+                document.getElementById('action-location').value = action.local || '';
+                document.getElementById('action-planned').value = action.planejado;
+                appState.selectedWeekdays = action.diasSemana ? [...action.diasSemana] : [];
+            } else {
+                title.textContent = "Nova Ação do Plano";
+                document.getElementById('action-id').value = '';
+                form.reset();
+                document.getElementById('action-start-date').value = '2026-09-01';
+                document.getElementById('action-end-date').value = '2026-09-30';
+            }
+
+            updateWeekdayButtonsUI();
+            document.getElementById('modal-action').classList.remove('hidden');
+        };
+
+        window.closeActionModal = function() {
+            document.getElementById('modal-action').classList.add('hidden');
+        };
+
+        let isSavingAction = false;
+        window.handleSaveAction = function(event) {
+            if (event) event.preventDefault();
+            if (isSavingAction) return; // evita criar a ação duas vezes com duplo clique/duplo toque
+            isSavingAction = true;
+            setTimeout(() => { isSavingAction = false; }, 800);
+
+            const actionId = document.getElementById('action-id').value;
+            const name = document.getElementById('action-name').value.trim();
+            const startDate = document.getElementById('action-start-date').value;
+            const endDate = document.getElementById('action-end-date').value;
+            const startDate2 = document.getElementById('action-start-date-2').value;
+            const endDate2 = document.getElementById('action-end-date-2').value;
+            const location = document.getElementById('action-location').value.trim();
+            const planned = Number(document.getElementById('action-planned').value);
+
+            if (!name || !startDate || !endDate || isNaN(planned)) return;
+
+            const nowStr = new Date().toISOString();
+            const actionData = {
+                id: actionId || 'act-' + Date.now(),
+                acao: name,
+                dataInicial: startDate,
+                dataFinal: endDate,
+                dataInicial2: startDate2 || '',
+                dataFinal2: endDate2 || '',
+                diasSemana: [...appState.selectedWeekdays],
+                local: location,
+                planejado: planned,
+                criadoEm: nowStr,
+                atualizadoEm: nowStr
+            };
+
+            if (actionId) {
+                const idx = appState.actions.findIndex(a => a.id === actionId);
+                if (idx !== -1) appState.actions[idx] = { ...appState.actions[idx], ...actionData };
+            } else {
+                appState.actions.push(actionData);
+            }
+
+            saveLocalState();
+            closeActionModal();
+            invalidateViews();
+            renderActiveView();
+
+            saveActionToSupabase(actionData);
+        };
+
+        window.confirmDeleteAction = function(actionId) {
+            showConfirmModal("Excluir Ação do Plano", "Deseja realmente excluir esta ação?", async () => {
+                appState.actions = appState.actions.filter(a => a.id !== actionId);
+                appState.launches = appState.launches.filter(l => l.planoId !== actionId);
+
+                saveLocalState();
+                invalidateViews();
+                renderActiveView();
+
+                deleteActionFromSupabase(actionId);
+            });
+        };
+
+        window.openTaskHistoryModal = function(actionId) {
+            const action = appState.actions.find(a => a.id === actionId);
+            if (!action) return;
+
+            document.getElementById('modal-history-task-title').textContent = action.acao;
+            const summary = document.getElementById('task-history-summary');
+            const totalRealized = getTotalRealized(action.id);
+            summary.innerHTML = `
+                <div class="flex justify-between">
+                    <span>Planejado: <strong>${action.planejado}</strong></span>
+                    <span>Realizado: <strong>${totalRealized}</strong></span>
+                    <span>Restante: <strong>${Math.max(0, action.planejado - totalRealized)}</strong></span>
+                </div>
+            `;
+
+            const taskLaunches = appState.launches
+                .filter(l => l.planoId === actionId)
+                .sort((a, b) => a.dataRealizacao.localeCompare(b.dataRealizacao));
+
+            const tbody = document.getElementById('task-history-table-body');
+            if (taskLaunches.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">Nenhum lançamento.</td></tr>`;
+            } else {
+                let accumulated = 0;
+                tbody.innerHTML = taskLaunches.map(l => {
+                    accumulated += Number(l.quantidade) || 0;
+                    const percent = ((accumulated / action.planejado) * 100).toFixed(1);
+                    return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-2 font-semibold">${formatDateBR(l.dataRealizacao)}</td>
+                            <td class="p-2 font-bold text-emerald-700">+${l.quantidade}</td>
+                            <td class="p-2">${accumulated}</td>
+                            <td class="p-2">${percent}%</td>
+                            <td class="p-2">${Math.max(0, action.planejado - accumulated)}</td>
+                            <td class="p-2 text-right">
+                                <button onclick="confirmDeleteLaunch('${l.id}')" class="text-rose-600 p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('modal-task-history').classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.closeTaskHistoryModal = function() {
+            document.getElementById('modal-task-history').classList.add('hidden');
+        };
+
+        let confirmCallback = null;
+        function showConfirmModal(title, msg, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = msg;
+            confirmCallback = onConfirm;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-confirm-cancel').onclick = () => {
+            document.getElementById('modal-confirm').classList.add('hidden');
+        };
+
+        document.getElementById('btn-confirm-ok').onclick = () => {
+            if (confirmCallback) confirmCallback();
+            document.getElementById('modal-confirm').classList.add('hidden');
+        };
+
+        window.openCloudModal = function() {
+            document.getElementById('supabase-url').value = localStorage.getItem('papai_sb_url') || DEFAULT_SUPABASE_URL;
+            document.getElementById('supabase-key').value = localStorage.getItem('papai_sb_key') || DEFAULT_SUPABASE_KEY;
+            document.getElementById('modal-cloud').classList.remove('hidden');
+        };
+
+        window.closeCloudModal = function() {
+            document.getElementById('modal-cloud').classList.add('hidden');
+        };
+
+        window.handleSaveSupabaseConfig = function(e) {
+            if (e) e.preventDefault();
+            const url = document.getElementById('supabase-url').value.trim();
+            const key = document.getElementById('supabase-key').value.trim();
+
+            if (!url || !key) return;
+
+            localStorage.setItem('papai_sb_url', url);
+            localStorage.setItem('papai_sb_key', key);
+            closeCloudModal();
+            window.location.reload();
+        };
+
+        window.clearCloudConfig = function() {
+            localStorage.removeItem('papai_sb_url');
+            localStorage.removeItem('papai_sb_key');
+            closeCloudModal();
+            window.location.reload();
+        };
+
+        window.openShareModal = function() {
+            const currentUrl = window.location.href;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(currentUrl)}`;
+            document.getElementById('share-qr-code').src = qrUrl;
+            document.getElementById('modal-share').classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.closeShareModal = function() {
+            document.getElementById('modal-share').classList.add('hidden');
+        };
+
+        window.copyAppUrl = function() {
+            const tempInput = document.createElement('input');
+            tempInput.value = window.location.href;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            alert("Link do aplicativo copiado!");
+        };
+
+        window.exportToPDF = function() {
+            document.getElementById('print-generated-date').textContent = new Date().toLocaleString('pt-BR');
+            window.print();
+        };
+
+        window.exportToCSV = function() {
+            let csv = "Data Realizacao;Local;Atividade;Planejado;Realizado no Dia;Observacao\n";
+            appState.launches.forEach(l => {
+                const act = appState.actions.find(a => a.id === l.planoId);
+                csv += `${formatDateBR(l.dataRealizacao)};"${act ? act.local : ''}";"${act ? act.acao : ''}";${act ? act.planejado : 0};${l.quantidade};"${l.observacao || ''}"\n`;
+            });
+
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Plano_de_Trabalho_Papai.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+
+        window.resetDefaultData = function() {
+            showConfirmModal("Restaurar Padrão", "Deseja restaurar as ações padrão?", () => {
+                appState.actions = [...defaultActions];
+                appState.launches = [];
+                saveLocalState();
+                renderAllViews();
+            });
+        };
+
+        // Date handlers
+        document.getElementById('btn-prev-day').onclick = () => {
+            const [y, m, d] = appState.selectedDate.split('-').map(Number);
+            const dt = new Date(y, m - 1, d - 1);
+            appState.selectedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            invalidateViews();
+            renderActiveView();
+        };
+
+        document.getElementById('btn-next-day').onclick = () => {
+            const [y, m, d] = appState.selectedDate.split('-').map(Number);
+            const dt = new Date(y, m - 1, d + 1);
+            appState.selectedDate = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            invalidateViews();
+            renderActiveView();
+        };
+
+        document.getElementById('input-select-date').onchange = (e) => {
+            if (e.target.value) {
+                appState.selectedDate = e.target.value;
+                invalidateViews();
+                renderActiveView();
+            }
+        };
+
+        // Init
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadLocalState();
+            invalidateViews();
+            renderActiveView();
+            await initSupabase();
+        });
+    </script>
+</body>
+</html>
