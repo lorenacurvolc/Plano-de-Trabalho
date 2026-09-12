@@ -620,10 +620,20 @@
             }
         ];
 
+        // Retorna a data de hoje real (do dispositivo do usuário) no formato YYYY-MM-DD,
+        // usando o horário local (evita o problema de "virar o dia" errado por causa de UTC).
+        function getTodayStr() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         let appState = {
-            selectedDate: '2026-09-11',
-            selectedMonth: '2026-09',
-            actions: [...defaultActions],
+            selectedDate: getTodayStr(),
+            selectedMonth: getTodayStr().slice(0, 7),
+            actions: [],
             launches: [],
             selectedWeekdays: [],
             activeTab: 'hoje',
@@ -765,34 +775,19 @@
         }
 
         // Remove itens com id repetido, mantendo o último (mais recente) de cada id.
-        // Protege a tela contra duplicidade que já exista no localStorage ou vinda do Supabase.
+        // Protege a tela contra duplicidade que já exista nos dados vindos da nuvem.
         function dedupeById(list) {
             const map = new Map();
             (list || []).forEach(item => { if (item && item.id) map.set(item.id, item); });
             return Array.from(map.values());
         }
 
-        // LocalStorage logic
-        function saveLocalState() {
-            try {
-                localStorage.setItem('papai_actions', JSON.stringify(appState.actions));
-                localStorage.setItem('papai_launches', JSON.stringify(appState.launches));
-            } catch(e) {}
-        }
-
-        function loadLocalState() {
-            try {
-                const savedActions = localStorage.getItem('papai_actions');
-                const savedLaunches = localStorage.getItem('papai_launches');
-                if (savedActions) appState.actions = dedupeById(JSON.parse(savedActions));
-                if (savedLaunches) appState.launches = dedupeById(JSON.parse(savedLaunches));
-            } catch(e) {}
-        }
-
         function invalidateViews() {
             appState.dirtyViews = { hoje: true, calendario: true, historico: true, plano: true, mais: true };
         }
 
+        // Único banco de dados do app: a nuvem (Supabase). Nada é salvo no aparelho —
+        // se não houver conexão, o app avisa e não deixa os dados "presos" no navegador.
         async function initSupabase() {
             const sbUrl = localStorage.getItem('papai_sb_url') || DEFAULT_SUPABASE_URL;
             const sbKey = localStorage.getItem('papai_sb_key') || DEFAULT_SUPABASE_KEY;
@@ -800,23 +795,46 @@
             if (sbUrl && sbKey && window.supabase) {
                 try {
                     supabaseClient = window.supabase.createClient(sbUrl, sbKey);
-                    updateDbStatusUI(true, "Conectado ao Supabase (Nuvem)");
+                    updateDbStatusUI(true, "Conectado ao Banco de Dados (Nuvem)");
                     await syncFromSupabase();
                 } catch (e) {
                     console.warn("Erro ao conectar ao Supabase:", e);
-                    updateDbStatusUI(false, "Erro de Conexão Supabase");
+                    supabaseClient = null;
+                    updateDbStatusUI(false, "Sem conexão com o banco de dados");
+                    showConnectionErrorBanner();
                 }
             } else {
-                updateDbStatusUI(false, "Modo Local (Aparelho)");
+                supabaseClient = null;
+                updateDbStatusUI(false, "Sem conexão com o banco de dados");
+                showConnectionErrorBanner();
             }
         }
+
+        function showConnectionErrorBanner() {
+            const container = document.getElementById('delayed-banner-container');
+            if (!container) return;
+            container.classList.remove('hidden');
+            container.innerHTML = `
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-800 flex items-start gap-2">
+                    <i data-lucide="wifi-off" class="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <strong class="block">Sem conexão com o banco de dados na nuvem.</strong>
+                        Verifique sua internet e recarregue a página. Os dados são guardados apenas na nuvem, então nada será exibido ou salvo enquanto o app estiver offline.
+                    </div>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+        }
+
 
         async function syncFromSupabase() {
             if (!supabaseClient) return;
 
             try {
+                // Único banco de dados: busca tudo direto da nuvem (Supabase) e usa isso como
+                // verdade absoluta — não existe mais cópia local para mesclar ou conflitar.
                 const { data: fetchPlanos, error: errPlanos } = await supabaseClient.from('planos').select('*');
-                if (!errPlanos && fetchPlanos && fetchPlanos.length > 0) {
+                if (!errPlanos && fetchPlanos) {
                     appState.actions = dedupeById(fetchPlanos);
                 }
 
@@ -825,7 +843,6 @@
                     appState.launches = dedupeById(fetchLancamentos);
                 }
 
-                saveLocalState();
                 invalidateViews();
                 renderActiveView();
             } catch(err) {
@@ -900,7 +917,7 @@
             const dateStr = appState.selectedDate;
             document.getElementById('display-selected-date').textContent = formatDateBR(dateStr);
             
-            const todayStr = '2026-09-11';
+            const todayStr = getTodayStr();
             const badge = document.getElementById('display-day-status-badge');
             if (dateStr === todayStr) {
                 badge.textContent = 'Hoje';
@@ -1361,7 +1378,6 @@
                 appState.launches.push(launchData);
             }
 
-            saveLocalState();
             closeLaunchModal();
             invalidateViews();
             renderActiveView();
@@ -1387,7 +1403,6 @@
         window.confirmDeleteLaunch = function(launchId) {
             showConfirmModal("Excluir Lançamento", "Deseja realmente excluir este lançamento?", async () => {
                 appState.launches = appState.launches.filter(l => l.id !== launchId);
-                saveLocalState();
                 renderAllViews();
                 deleteLaunchFromSupabase(launchId);
             });
@@ -1489,7 +1504,6 @@
                 appState.actions.push(actionData);
             }
 
-            saveLocalState();
             closeActionModal();
             invalidateViews();
             renderActiveView();
@@ -1502,7 +1516,6 @@
                 appState.actions = appState.actions.filter(a => a.id !== actionId);
                 appState.launches = appState.launches.filter(l => l.planoId !== actionId);
 
-                saveLocalState();
                 invalidateViews();
                 renderActiveView();
 
@@ -1652,11 +1665,23 @@
         };
 
         window.resetDefaultData = function() {
-            showConfirmModal("Restaurar Padrão", "Deseja restaurar as ações padrão?", () => {
+            showConfirmModal("Restaurar Padrão", "Isso vai apagar os dados atuais na nuvem e recolocar as ações padrão. Deseja continuar?", async () => {
                 appState.actions = [...defaultActions];
                 appState.launches = [];
-                saveLocalState();
                 renderAllViews();
+
+                if (supabaseClient) {
+                    try {
+                        // Limpa as tabelas na nuvem (único banco de dados do app) e recoloca o padrão
+                        await supabaseClient.from('lancamentos').delete().neq('id', '__none__');
+                        await supabaseClient.from('planos').delete().neq('id', '__none__');
+                        for (const action of defaultActions) {
+                            await saveActionToSupabase(action);
+                        }
+                    } catch (e) {
+                        console.error("Erro ao restaurar padrão na nuvem:", e);
+                    }
+                }
             });
         };
 
@@ -1686,11 +1711,32 @@
         };
 
         // Init
+        let lastKnownToday = getTodayStr();
+        function checkForNewDay() {
+            const currentToday = getTodayStr();
+            if (currentToday !== lastKnownToday) {
+                // Só avança automaticamente se o usuário estava vendo "hoje" (não mexe se ele
+                // tiver navegado manualmente para outro dia no calendário).
+                if (appState.selectedDate === lastKnownToday) {
+                    appState.selectedDate = currentToday;
+                }
+                lastKnownToday = currentToday;
+                invalidateViews();
+                renderActiveView();
+            }
+        }
         window.addEventListener('DOMContentLoaded', async () => {
-            loadLocalState();
             invalidateViews();
             renderActiveView();
             await initSupabase();
+
+            // Garante que o app perceba a virada do dia mesmo se ficar aberto em segundo plano
+            // (ex: celular com a aba/PWA aberta durante a noite).
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') checkForNewDay();
+            });
+            window.addEventListener('focus', checkForNewDay);
+            setInterval(checkForNewDay, 5 * 60 * 1000);
         });
     </script>
 </body>
