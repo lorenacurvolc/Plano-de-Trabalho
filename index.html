@@ -70,15 +70,11 @@
                     <p class="text-xs text-sky-100 font-medium">Acompanhamento diário em tempo real</p>
                 </div>
             </div>
-            <button onclick="openShareModal()" class="bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-2xl border border-white/20 transition flex items-center gap-1.5 text-xs font-semibold">
-                <i data-lucide="share-2" class="w-4 h-4 text-emerald-300"></i>
-                <span class="hidden sm:inline">Compartilhar</span>
-            </button>
         </div>
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-3xl w-full mx-auto px-4 py-5 flex-grow">
+    <main class="max-w-3xl w-full mx-auto px-4 py-5 flex-grow no-print">
 
         <!-- VIEW 1: HOJE (Tarefas do Dia) -->
         <section id="view-hoje" class="app-view space-y-4">
@@ -192,6 +188,13 @@
                 </button>
             </div>
 
+            <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200 flex items-center gap-2.5">
+                <i data-lucide="filter" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+                <label class="text-xs font-bold text-slate-600 whitespace-nowrap">Mês de observação:</label>
+                <input type="month" id="plano-month-filter" onchange="handleMonthFilterChange(this.value)" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl p-2 font-semibold flex-1">
+                <button onclick="handleMonthFilterChange(getTodayStr().slice(0,7))" class="text-xs font-semibold text-emerald-700 hover:underline whitespace-nowrap">Mês atual</button>
+            </div>
+
             <div id="full-plan-container" class="space-y-3.5"></div>
         </section>
 
@@ -202,7 +205,14 @@
                     <i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-600"></i>
                     Resumo do Mês
                 </h2>
-                <p class="text-xs text-slate-500 mb-4">Visão acumulada do desempenho das metas</p>
+                <p class="text-xs text-slate-500 mb-3">Visão acumulada do desempenho das metas</p>
+
+                <div class="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-4">
+                    <i data-lucide="filter" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+                    <label class="text-xs font-bold text-slate-600 whitespace-nowrap">Mês de observação:</label>
+                    <input type="month" id="summary-month-filter" onchange="handleMonthFilterChange(this.value)" class="bg-white border border-slate-300 text-slate-800 text-sm rounded-xl p-2 font-semibold flex-1">
+                    <button onclick="handleMonthFilterChange(getTodayStr().slice(0,7))" class="text-xs font-semibold text-emerald-700 hover:underline whitespace-nowrap">Mês atual</button>
+                </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
@@ -247,6 +257,15 @@
                         <div class="text-[10px] font-medium uppercase">Atrasadas</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Previsto x Realizado por Categoria -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2 mb-3">
+                    <i data-lucide="list-checks" class="w-5 h-5 text-emerald-600"></i>
+                    Previsto x Realizado por Categoria
+                </h3>
+                <div id="summary-by-category" class="space-y-2.5"></div>
             </div>
 
             <!-- Exportação de Relatório -->
@@ -345,7 +364,7 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Quantidade Realizada</label>
-                    <input type="number" id="launch-quantity" min="0" required placeholder="Ex: 20" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="number" id="launch-quantity" min="1" required placeholder="Ex: 20" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
@@ -543,7 +562,7 @@
     <div id="print-area" class="print-only p-8 bg-white text-slate-900">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-bold">Plano de Trabalho do Papai ❤</h1>
-            <p class="text-sm">Relatório Mensal de Atividades - Setembro 2026</p>
+            <p class="text-sm">Relatório Mensal de Atividades - <span id="print-period-label"></span></p>
             <p class="text-xs text-slate-500 mt-1">Gerado em: <span id="print-generated-date"></span></p>
         </div>
         <div id="print-content"></div>
@@ -653,6 +672,61 @@
                 .filter(l => l.planoId === actionId)
                 .reduce((sum, l) => sum + (Number(l.quantidade) || 0), 0);
         }
+
+        // --- Filtro de período (mês de observação) ---
+        const MONTH_NAMES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+        function formatMonthBR(monthStr) {
+            if (!monthStr) return '';
+            const [y, m] = monthStr.split('-').map(Number);
+            return `${MONTH_NAMES_PT[m - 1]} de ${y}`;
+        }
+
+        // Retorna [primeiroDia, ultimoDia] (strings YYYY-MM-DD) do mês informado (YYYY-MM)
+        function getMonthRange(monthStr) {
+            const [y, m] = monthStr.split('-').map(Number);
+            const first = `${monthStr}-01`;
+            const lastDay = new Date(y, m, 0).getDate();
+            const last = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
+            return [first, last];
+        }
+
+        // Uma ação "pertence" a um mês se o período dela (um dos dois intervalos) cruza esse mês
+        function actionOverlapsMonth(action, monthStr) {
+            const [first, last] = getMonthRange(monthStr);
+            const overlaps = (s, e) => s && e && s <= last && e >= first;
+            return overlaps(action.dataInicial, action.dataFinal) || overlaps(action.dataInicial2, action.dataFinal2);
+        }
+
+        function getActionsForMonth(monthStr) {
+            return appState.actions.filter(a => actionOverlapsMonth(a, monthStr));
+        }
+
+        function getLaunchesInMonth(actionId, monthStr) {
+            const [first, last] = getMonthRange(monthStr);
+            return appState.launches
+                .filter(l => l.planoId === actionId && l.dataRealizacao >= first && l.dataRealizacao <= last)
+                .sort((a, b) => a.dataRealizacao.localeCompare(b.dataRealizacao));
+        }
+
+        function getRealizadoInMonth(actionId, monthStr) {
+            return getLaunchesInMonth(actionId, monthStr).reduce((sum, l) => sum + (Number(l.quantidade) || 0), 0);
+        }
+
+        // Sincroniza os seletores de mês (Plano e Resumo), re-renderiza e muda o estado.
+        window.handleMonthFilterChange = function(newMonth) {
+            if (!newMonth) return;
+            appState.selectedMonth = newMonth;
+
+            const planoInput = document.getElementById('plano-month-filter');
+            const summaryInput = document.getElementById('summary-month-filter');
+            if (planoInput) planoInput.value = newMonth;
+            if (summaryInput) summaryInput.value = newMonth;
+
+            appState.dirtyViews.plano = true;
+            appState.dirtyViews.mais = true;
+            renderActiveView();
+        };
 
         function getLaunchesUpToDate(actionId, targetDateStr) {
             return appState.launches.filter(l => l.planoId === actionId && l.dataRealizacao <= targetDateStr);
@@ -1238,9 +1312,24 @@
             const container = document.getElementById('full-plan-container');
             if (!container) return;
 
-            container.innerHTML = appState.actions.map(action => {
-                const totalRealized = getTotalRealized(action.id);
-                const percent = ((totalRealized / action.planejado) * 100).toFixed(1);
+            const monthFilter = document.getElementById('plano-month-filter');
+            if (monthFilter) monthFilter.value = appState.selectedMonth;
+
+            const monthActions = getActionsForMonth(appState.selectedMonth);
+
+            if (monthActions.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 text-center border border-slate-200">
+                        <i data-lucide="calendar-x" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+                        <p class="font-semibold text-slate-600 text-sm">Nenhuma ação com período em ${formatMonthBR(appState.selectedMonth)}.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = monthActions.map(action => {
+                const monthRealized = getRealizadoInMonth(action.id, appState.selectedMonth);
+                const percent = ((monthRealized / action.planejado) * 100).toFixed(1);
 
                 return `
                     <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
@@ -1249,12 +1338,12 @@
                                 <h3 class="font-bold text-slate-800 text-sm md:text-base">${action.acao}</h3>
                                 <p class="text-xs text-slate-500 mt-0.5">Local: <strong>${action.local || 'Geral'}</strong></p>
                             </div>
-                            <span class="text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg text-slate-700 whitespace-nowrap">Qtd: ${action.planejado}</span>
+                            <span class="text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg text-slate-700 whitespace-nowrap">Previsto: ${action.planejado}</span>
                         </div>
 
                         <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 text-xs">
                             <div class="flex justify-between font-semibold text-slate-700">
-                                <span>Realizado: ${totalRealized} / ${action.planejado}</span>
+                                <span>Realizado em ${formatMonthBR(appState.selectedMonth)}: ${monthRealized} / ${action.planejado}</span>
                                 <span class="text-emerald-700">${percent}%</span>
                             </div>
                             <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -1279,10 +1368,15 @@
         }
 
         function renderMaisView() {
+            const monthInput = document.getElementById('summary-month-filter');
+            if (monthInput) monthInput.value = appState.selectedMonth;
+
+            const monthActions = getActionsForMonth(appState.selectedMonth);
+
             let totalPlanned = 0, totalRealized = 0;
-            appState.actions.forEach(act => {
+            monthActions.forEach(act => {
                 totalPlanned += Number(act.planejado) || 0;
-                totalRealized += getTotalRealized(act.id);
+                totalRealized += getRealizadoInMonth(act.id, appState.selectedMonth);
             });
 
             const remaining = Math.max(0, totalPlanned - totalRealized);
@@ -1296,7 +1390,7 @@
             document.getElementById('summary-progress-bar').style.width = `${Math.min(100, overallPercent)}%`;
 
             let completed = 0, inProgress = 0, overdue = 0;
-            appState.actions.forEach(act => {
+            monthActions.forEach(act => {
                 const st = getActionStatus(act, appState.selectedDate);
                 if (st === 'Concluído' || st === 'Meta ultrapassada') completed++;
                 else if (st === 'Atrasado') overdue++;
@@ -1306,6 +1400,33 @@
             document.getElementById('count-completed').textContent = completed;
             document.getElementById('count-in-progress').textContent = inProgress;
             document.getElementById('count-overdue').textContent = overdue;
+
+            const categoryContainer = document.getElementById('summary-by-category');
+            if (categoryContainer) {
+                if (monthActions.length === 0) {
+                    categoryContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">Nenhuma ação com período em ${formatMonthBR(appState.selectedMonth)}.</p>`;
+                } else {
+                    categoryContainer.innerHTML = [...monthActions].sort((a, b) => a.acao.localeCompare(b.acao)).map(act => {
+                        const realized = getRealizadoInMonth(act.id, appState.selectedMonth);
+                        const pct = act.planejado > 0 ? ((realized / act.planejado) * 100).toFixed(1) : '0.0';
+                        return `
+                            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                <div class="flex justify-between items-center gap-2 text-xs">
+                                    <span class="font-semibold text-slate-700">${act.acao}</span>
+                                    <span class="text-emerald-700 font-bold whitespace-nowrap">${pct}%</span>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-500 mt-0.5">
+                                    <span>Previsto: <strong class="text-slate-700">${act.planejado}</strong></span>
+                                    <span>Realizado: <strong class="text-emerald-700">${realized}</strong></span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-1.5">
+                                    <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${Math.min(100, pct)}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
         }
 
         window.switchTab = function(tabName) {
@@ -1357,7 +1478,7 @@
             const qty = Number(document.getElementById('launch-quantity').value);
             const obs = document.getElementById('launch-obs').value.trim();
 
-            if (!actionId || !dateRealized || isNaN(qty) || qty < 0) return;
+            if (!actionId || !dateRealized || isNaN(qty) || qty <= 0) return;
 
             const nowStr = new Date().toISOString();
             const launchData = {
@@ -1642,8 +1763,144 @@
             alert("Link do aplicativo copiado!");
         };
 
+        function buildPrintSummary(monthStr, monthActions) {
+            let totalPlanned = 0, totalRealized = 0;
+            monthActions.forEach(act => {
+                totalPlanned += Number(act.planejado) || 0;
+                totalRealized += getRealizadoInMonth(act.id, monthStr);
+            });
+            const remaining = Math.max(0, totalPlanned - totalRealized);
+            const overallPercent = totalPlanned > 0 ? ((totalRealized / totalPlanned) * 100).toFixed(1) : 0;
+
+            let completed = 0, inProgress = 0, overdue = 0;
+            monthActions.forEach(act => {
+                const st = getActionStatus(act, appState.selectedDate);
+                if (st === 'Concluído' || st === 'Meta ultrapassada') completed++;
+                else if (st === 'Atrasado') overdue++;
+                else if (st === 'Em andamento') inProgress++;
+            });
+
+            return `
+                <div style="border:1px solid #e2e8f0; border-radius:14px; padding:16px; margin-bottom: 8px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+                    <h2 style="font-size:15px; font-weight:800; margin:0 0 2px 0;">Resumo do Mês</h2>
+                    <p style="font-size:11px; color:#64748b; margin:0 0 12px 0;">Visão acumulada do desempenho das metas</p>
+
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+                        <div style="background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:10px;">
+                            <div style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase;">Planejado</div>
+                            <div style="font-size:20px; font-weight:800; color:#1e293b;">${totalPlanned}</div>
+                        </div>
+                        <div style="background:#ecfdf5; border:1px solid #d1fae5; border-radius:10px; padding:10px;">
+                            <div style="font-size:10px; font-weight:700; color:#047857; text-transform:uppercase;">Realizado</div>
+                            <div style="font-size:20px; font-weight:800; color:#047857;">${totalRealized}</div>
+                        </div>
+                        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px;">
+                            <div style="font-size:10px; font-weight:700; color:#92400e; text-transform:uppercase;">Restante</div>
+                            <div style="font-size:20px; font-weight:800; color:#92400e;">${remaining}</div>
+                        </div>
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px;">
+                            <div style="font-size:10px; font-weight:700; color:#1d4ed8; text-transform:uppercase;">Progresso</div>
+                            <div style="font-size:20px; font-weight:800; color:#1d4ed8;">${overallPercent}%</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600; color:#475569; margin-bottom:4px;">
+                            <span>Progresso Geral das Metas</span>
+                            <span>${overallPercent}%</span>
+                        </div>
+                        <div style="width:100%; background:#f1f5f9; border-radius:9999px; height:10px; overflow:hidden;">
+                            <div style="width:${Math.min(100, overallPercent)}%; background:#059669; height:10px; border-radius:9999px;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid #f1f5f9; text-align:center;">
+                        <div style="background:#ecfdf5; border-radius:10px; padding:8px;">
+                            <div style="font-size:16px; font-weight:800; color:#065f46;">${completed}</div>
+                            <div style="font-size:9px; font-weight:700; text-transform:uppercase; color:#065f46;">Concluídas</div>
+                        </div>
+                        <div style="background:#eff6ff; border-radius:10px; padding:8px;">
+                            <div style="font-size:16px; font-weight:800; color:#1e40af;">${inProgress}</div>
+                            <div style="font-size:9px; font-weight:700; text-transform:uppercase; color:#1e40af;">Em Andamento</div>
+                        </div>
+                        <div style="background:#fef2f2; border-radius:10px; padding:8px;">
+                            <div style="font-size:16px; font-weight:800; color:#991b1b;">${overdue}</div>
+                            <div style="font-size:9px; font-weight:700; text-transform:uppercase; color:#991b1b;">Atrasadas</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px; padding-top:12px; border-top:1px solid #f1f5f9;">
+                        <p style="font-size:12px; font-weight:800; margin:0 0 8px 0;">Previsto x Realizado por Categoria</p>
+                        ${monthActions.length === 0
+                            ? '<p style="font-size:11px; color:#888; font-style:italic; margin:0;">Nenhuma ação com período neste mês.</p>'
+                            : [...monthActions].sort((a, b) => a.acao.localeCompare(b.acao)).map(act => {
+                                const realized = getRealizadoInMonth(act.id, monthStr);
+                                const pct = act.planejado > 0 ? ((realized / act.planejado) * 100).toFixed(1) : '0.0';
+                                return `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:5px 0; border-bottom:1px solid #f1f5f9;">
+                                        <span style="font-weight:600; color:#334155;">${act.acao}</span>
+                                        <span style="color:#475569; white-space:nowrap; margin-left:8px;">Previsto: <strong>${act.planejado}</strong> &nbsp; Realizado: <strong style="color:#047857;">${realized}</strong> &nbsp; <strong>${pct}%</strong></span>
+                                    </div>
+                                `;
+                            }).join('')
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildPrintContent() {
+            const container = document.getElementById('print-content');
+            if (!container) return;
+
+            const monthStr = appState.selectedMonth;
+            const monthActions = getActionsForMonth(monthStr);
+
+            const periodLabel = document.getElementById('print-period-label');
+            if (periodLabel) periodLabel.textContent = formatMonthBR(monthStr);
+
+            let html = buildPrintSummary(monthStr, monthActions);
+
+            if (monthActions.length === 0) {
+                html += `<p style="font-size:12px; color:#666; margin-top:16px;">Nenhuma ação com período em ${formatMonthBR(monthStr)}.</p>`;
+                container.innerHTML = html;
+                return;
+            }
+
+            const sortedActions = [...monthActions].sort((a, b) => a.acao.localeCompare(b.acao));
+
+            html += `
+                <h2 style="font-size:15px; font-weight:800; margin: 18px 0 10px 0; border-top: 2px solid #333; padding-top: 12px;">
+                    Detalhamento de Realizados por Ação — ${formatMonthBR(monthStr)}
+                </h2>
+            `;
+
+            sortedActions.forEach(action => {
+                const monthRealized = getRealizadoInMonth(action.id, monthStr);
+                const percent = action.planejado > 0 ? ((monthRealized / action.planejado) * 100).toFixed(1) : '0.0';
+                const launches = getLaunchesInMonth(action.id, monthStr);
+
+                html += `
+                    <div style="margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #ddd; page-break-inside: avoid;">
+                        <p style="font-size:13px; font-weight:700; margin: 0 0 4px 0;">
+                            ${action.acao} — ${percent}% concluída (${monthRealized}/${action.planejado})
+                        </p>
+                        ${launches.length === 0
+                            ? '<p style="font-size:11px; color:#888; font-style:italic; margin:0;">Nenhum lançamento registrado neste mês.</p>'
+                            : `<ul style="font-size:12px; margin:0; padding-left:20px;">
+                                ${launches.map(l => `<li>Dia ${formatDateBR(l.dataRealizacao)}: realizado ${l.quantidade}${l.observacao ? ` — ${l.observacao}` : ''}</li>`).join('')}
+                               </ul>`
+                        }
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
         window.exportToPDF = function() {
             document.getElementById('print-generated-date').textContent = new Date().toLocaleString('pt-BR');
+            buildPrintContent();
             window.print();
         };
 
