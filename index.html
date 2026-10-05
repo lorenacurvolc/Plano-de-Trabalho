@@ -657,6 +657,7 @@
             selectedWeekdays: [],
             activeTab: 'hoje',
             historyFilters: { actionId: '', dateFrom: '', dateTo: '' },
+            hidePendingBanner: false,
             dirtyViews: { hoje: true, calendario: true, historico: true, plano: true, mais: true }
         };
 
@@ -759,12 +760,15 @@
 
         function getOverdueTasksForDate(currentDateStr) {
             const overdues = [];
+            // Pendências de meses anteriores ao mês atual não ficam acumulando para sempre no banner.
+            const currentMonthStr = getTodayStr().slice(0, 7);
             appState.actions.forEach(action => {
                 const totalRealized = getTotalRealized(action.id);
                 if (totalRealized >= action.planejado) return;
 
                 const maxEndDate = (action.dataFinal2 && action.dataFinal2 > action.dataFinal) ? action.dataFinal2 : action.dataFinal;
                 if (currentDateStr > maxEndDate) {
+                    if (maxEndDate.slice(0, 7) < currentMonthStr) return; // mês passado: pode sumir
                     overdues.push({
                         action,
                         overdueDate: maxEndDate,
@@ -781,6 +785,8 @@
         // para não aparecerem duplicadas no banner de pendências.
         function getMissedWeekdayOccurrences(currentDateStr) {
             const missedByAction = [];
+            // Pendências de meses anteriores ao mês atual não ficam acumulando para sempre no banner.
+            const currentMonthStr = getTodayStr().slice(0, 7);
 
             appState.actions.forEach(action => {
                 if (!action.diasSemana || action.diasSemana.length === 0) return;
@@ -806,7 +812,8 @@
                     while (true) {
                         const cStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
                         if (cStr > limitStr) break;
-                        if (action.diasSemana.includes(cursor.getDay()) && !launchDates.has(cStr)) {
+                        // mês passado: pode sumir, só conta a partir do mês atual
+                        if (action.diasSemana.includes(cursor.getDay()) && !launchDates.has(cStr) && cStr.slice(0, 7) >= currentMonthStr) {
                             missedDates.push(cStr);
                         }
                         cursor.setDate(cursor.getDate() + 1);
@@ -824,6 +831,12 @@
 
         // Junta as duas fontes de pendência (prazo encerrado + dia da semana sem lançamento)
         // em uma única lista pronta para exibir no banner de destaque.
+        window.togglePendingBannerVisibility = function() {
+            appState.hidePendingBanner = !appState.hidePendingBanner;
+            appState.dirtyViews.hoje = true;
+            renderActiveView();
+        };
+
         function getPendingAlerts(currentDateStr) {
             const alerts = [];
 
@@ -1006,13 +1019,29 @@
 
             const pendingAlerts = getPendingAlerts(dateStr);
             const bannerContainer = document.getElementById('delayed-banner-container');
-            if (pendingAlerts.length > 0) {
+            if (pendingAlerts.length > 0 && appState.hidePendingBanner) {
+                bannerContainer.classList.remove('hidden');
+                bannerContainer.innerHTML = `
+                    <button onclick="togglePendingBannerVisibility()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs font-semibold text-slate-600 transition">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="eye-off" class="w-4 h-4"></i>
+                            Há ${pendingAlerts.length} tarefa${pendingAlerts.length > 1 ? 's' : ''} atrasada${pendingAlerts.length > 1 ? 's' : ''} oculta${pendingAlerts.length > 1 ? 's' : ''}
+                        </span>
+                        <span class="text-emerald-700 underline">Mostrar</span>
+                    </button>
+                `;
+            } else if (pendingAlerts.length > 0) {
                 bannerContainer.classList.remove('hidden');
                 bannerContainer.innerHTML = `
                     <div class="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-2">
-                        <div class="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
-                            <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i>
-                            Atividades Pendentes / Atrasadas (${pendingAlerts.length})
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 text-rose-800 font-bold text-xs uppercase tracking-wider">
+                                <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600"></i>
+                                Atividades Pendentes / Atrasadas (${pendingAlerts.length})
+                            </div>
+                            <button onclick="togglePendingBannerVisibility()" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition flex-shrink-0" title="Ocultar pendências">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
                         </div>
                         <div class="space-y-2">
                             ${pendingAlerts.map(alert => {
