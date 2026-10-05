@@ -364,7 +364,7 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Quantidade Realizada</label>
-                    <input type="number" id="launch-quantity" min="1" required placeholder="Ex: 20" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="number" id="launch-quantity" min="0" required placeholder="Ex: 20 (ou 0 se nada foi realizado)" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-base rounded-xl p-3 font-bold focus:ring-emerald-500 focus:border-emerald-500">
                 </div>
 
                 <div>
@@ -1507,7 +1507,7 @@
             const qty = Number(document.getElementById('launch-quantity').value);
             const obs = document.getElementById('launch-obs').value.trim();
 
-            if (!actionId || !dateRealized || isNaN(qty) || qty <= 0) return;
+            if (!actionId || !dateRealized || isNaN(qty) || qty < 0) return;
 
             const nowStr = new Date().toISOString();
             const launchData = {
